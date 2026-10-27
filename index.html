@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3EEE4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15130E" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Перевод">
+<meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Живой перевод</title>
+<style>
+:root {
+  --bg:#F3EEE4; --card:#FBF8F1; --ink:#1F1B15; --muted:#655D50; --draft:#6F6757; --hair:rgba(31,27,21,.12);
+  --me:#1D5E5B; --pt:#A33D1C; --rec:#C0392B; --ok:#2F6B3F; --warn:#8A5A00; --btn:#1F1B15; --btn-ink:#F3EEE4; --sel:#E7DFCF;
+  --fs:1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#15130E; --card:#1E1B14; --ink:#F2ECDD; --muted:#A89F8C; --draft:#B3AA96; --hair:rgba(242,236,221,.14);
+    --me:#7CCBC2; --pt:#F0A183; --rec:#FF6B5B; --ok:#8FD19E; --warn:#F0B84F; --btn:#F2ECDD; --btn-ink:#15130E; --sel:#2A261C;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+}
+.serif { font-family: "Iowan Old Style", Literata, Georgia, "Times New Roman", serif; }
+.screen { display: none; height: 100%; flex-direction: column; max-width: 860px; margin: 0 auto; padding: 0 16px; }
+.screen.on { display: flex; }
+h1 { font-size: 30px; margin: 28px 0 6px; font-weight: 600; letter-spacing: -.01em; }
+.lead { color: var(--muted); margin: 0 0 20px; }
+.card { background: var(--card); border: 1px solid var(--hair); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+input[type=password], input[type=text] {
+  width: 100%; font: inherit; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--hair);
+  background: var(--bg); color: var(--ink);
+}
+.row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.row input { width: 20px; height: 20px; }
+button { font: inherit; cursor: pointer; border: 0; color: inherit; background: none; }
+.primary {
+  width: 100%; padding: 16px; border-radius: 16px; background: var(--btn); color: var(--btn-ink);
+  font-size: 18px; font-weight: 600;
+}
+.primary:disabled { opacity: .5; }
+.note { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+.err { color: var(--rec); font-size: 14px; margin: 10px 0 0; min-height: 1em; }
+a { color: var(--me); }
+
+/* live */
+.top { display: flex; align-items: center; gap: 10px; padding: 12px 0 8px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--hair); font-size: 14px;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.dot.rec { background: var(--rec); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.grow { flex: 1; }
+.banner { background: var(--card); border: 1px solid var(--hair); border-left: 4px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 4px 0 8px; font-size: 14px; }
+.banner.bad { border-left-color: var(--rec); }
+.banner[hidden] { display: none; }
+.bar { height: 4px; background: var(--hair); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--me); transition: width .2s; }
+#list { flex: 1; overflow-y: auto; padding: 4px 0 12px; -webkit-overflow-scrolling: touch; }
+.ph { padding: 12px 0 14px; border-bottom: 1px solid var(--hair); }
+.tag { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+.ph.ru .tag, .ph.ru .tr { color: var(--me); }
+.ph.en .tag, .ph.en .tr { color: var(--pt); }
+.orig { color: var(--muted); font-size: calc(15px * var(--fs)); margin: 2px 0 4px; }
+.tr { font-size: calc(24px * var(--fs)); line-height: 1.25; font-weight: 500; }
+.tr.wait { color: var(--draft); font-style: italic; font-size: calc(18px * var(--fs)); }
+.hide-orig .orig { display: none; }
+.draft { padding: 12px 0; color: var(--draft); }
+.draft .orig { font-size: calc(17px * var(--fs)); color: var(--draft); }
+.draft .tr { font-size: calc(20px * var(--fs)); color: var(--draft); font-weight: 400; }
+.draft:empty { display: none; }
+.dock {
+  display: flex; gap: 8px; justify-content: center; align-items: center; background: var(--card);
+  border-radius: 28px 28px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); margin: 0 -16px;
+  border-top: 1px solid var(--hair);
+}
+.dock button { padding: 10px 12px; border-radius: 14px; font-size: 14px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 70px; }
+.dock button b { font-size: 20px; color: var(--ink); font-weight: 600; line-height: 1.1; }
+.dock button.sel { background: var(--sel); color: var(--ink); }
+.dock .stop { background: var(--rec); color: #fff; padding: 14px 22px; border-radius: 20px; font-weight: 600; font-size: 16px; }
+.dock .stop b { color: #fff; }
+
+/* face to face */
+#face { position: fixed; inset: 0; z-index: 5; background: var(--bg); display: none; flex-direction: column; padding-top: env(safe-area-inset-top); }
+#face.on { display: flex; }
+.half { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; justify-content: flex-end; }
+.half.top { transform: rotate(180deg); }
+.half .hd { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.line { font-size: calc(28px * var(--fs)); line-height: 1.25; margin: 6px 0; font-weight: 500; }
+.line.tr-line { color: var(--me); }
+.line.partial { color: var(--draft); font-weight: 400; }
+.mid { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); background: var(--card); }
+.mid button { padding: 8px 16px; border-radius: 12px; background: var(--sel); font-size: 14px; }
+
+/* summary */
+.sum { display: none; position: fixed; inset: 0; z-index: 9; background: var(--bg); padding: 24px 16px; overflow-y: auto; }
+.sum.on { display: block; }
+.sum .inner { max-width: 860px; margin: 0 auto; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.btns button { padding: 12px 16px; border-radius: 12px; background: var(--sel); font-weight: 600; }
+pre { white-space: pre-wrap; font: inherit; background: var(--card); border: 1px solid var(--hair); border-radius: 12px; padding: 12px; }
+</style>
+</head>
+<body>
+
+<section id="setup" class="screen on">
+  <h1 class="serif">Живой перевод</h1>
+  <p class="lead">Русский ⇄ английский, автоматически, во время разговора.</p>
+
+  <div class="card">
+    <label for="key">Ключ ElevenLabs</label>
+    <input id="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk_…">
+    <div class="row"><input id="remember" type="checkbox" checked><span>Запомнить на этом устройстве</span></div>
+    <div class="err" id="setupErr"></div>
+  </div>
+
+  <button id="start" class="primary">Начать</button>
+
+  <p class="note">
+    Звук с микрофона отправляется в ElevenLabs для распознавания речи. Перевод выполняется прямо на этом устройстве.
+    При первом запуске скачивается модель перевода (около 150 МБ), нужен Wi-Fi.
+    Разрешите доступ к микрофону, когда браузер попросит.
+  </p>
+</section>
+
+<section id="live" class="screen">
+  <div class="top">
+    <span class="pill"><span class="dot" id="dot"></span><span id="status">Подключение…</span></span>
+    <span class="grow"></span>
+    <span class="pill" id="mt">Перевод: загрузка</span>
+  </div>
+  <div class="banner" id="loadBanner" hidden>Загружается модель перевода: <span id="loadPct">0</span>%<div class="bar"><i id="loadBar"></i></div></div>
+  <div class="banner bad" id="errBanner" hidden></div>
+  <div id="list"></div>
+  <div class="draft" id="draft"></div>
+  <div class="dock">
+    <button id="bFont"><b>Aa</b>Размер</button>
+    <button id="bOrig" class="sel"><b>Т</b>Оригинал</button>
+    <button id="bStop" class="stop"><b>■</b>Стоп</button>
+    <button id="bFace"><b>⇅</b>Лицом к лицу</button>
+  </div>
+</section>
+
+<section id="face">
+  <div class="half top" id="faceTop"></div>
+  <div class="mid"><span id="faceStatus" style="color:var(--muted);font-size:14px"></span><button id="bFaceBack">Назад</button><button id="bFaceStop">Стоп</button></div>
+  <div class="half" id="faceBottom"></div>
+</section>
+
+<section class="sum" id="sum">
+  <div class="inner">
+    <h1 class="serif" style="margin-top:0">Готово</h1>
+    <p class="lead" id="sumInfo"></p>
+    <div class="btns">
+      <button id="bCopy">Скопировать текст</button>
+      <button id="bDownload">Скачать .txt</button>
+      <button id="bNew">Новый разговор</button>
+    </div>
+    <pre id="sumText"></pre>
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
