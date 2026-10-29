@@ -15,8 +15,21 @@ Folder: `web/` (static files, no build step). For a quick test on an iPhone/iPad
   180°), end-of-session screen with copy / download .txt.
 
 ## Key handling
-The ElevenLabs key is typed on the device and stored in `localStorage` of that browser (the "Remember" checkbox).
-It is never in the repository. Give the tester a **restricted** key (Speech to Text + User only) and set a usage limit.
+The ElevenLabs key is typed on the device. By default it lives in `sessionStorage` (gone when the tab is closed);
+only with the "Remember" checkbox (off by default) it is also written to `localStorage`. It is never in the repository.
+Give the tester a **restricted** key (Speech to Text + User only) and set a usage limit.
+
+## Privacy - this is a demo
+- Speech is recognized in the **ElevenLabs cloud**: the audio leaves the device. **Do not use the web demo for confidential
+  meetings.** (For those use the secure Android flavor, see the review.)
+- The transcript is autosaved in the browser (`localStorage`, key `wr_session`) so it survives a reload or a call. It stays on
+  the device; delete it with "Delete saved" on the start or summary screen.
+- A Content-Security-Policy limits where scripts may come from and where the page may connect (ElevenLabs, jsDelivr, Hugging Face).
+
+## What is new (2026-10-29)
+See `web/CHANGELOG.md`: commit of the last phrase on Stop, autosave + restore, pause, stop confirmation, fatal-error state,
+wake lock / interrupted audio handling, timeouts and worker restart, number check and glossary, service worker v2 with the
+update banner, CSP, debug hook only with `?debug=1`.
 
 ## Local run
 ```
@@ -29,6 +42,7 @@ https (e.g. GitHub Pages).
 ## Limits
 - Needs internet (recognition is in the cloud) and Wi-Fi for the first model download.
 - iOS stops the microphone when the page goes to the background or the screen locks; the wake lock keeps the screen on.
+  The page warns about it and tries to resume the sound when you come back; speech during the gap is lost.
 - Translation speed is 0.7–1.5 s per sentence on a desktop browser; a phone may be 2–3× slower.
 - Not verified yet with a real microphone and a real ElevenLabs session (only unit tests, the translation worker and the UI
   with simulated events).

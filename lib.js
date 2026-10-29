@@ -121,3 +121,110 @@ export class PartialThrottle {
     return true;
   }
 }
+
+// ---------------------------------------------------------------- translation post-processing
+
+/** Strips Opus-MT artefacts: runs of dots ("......"), phrases repeated in a loop, extra spaces. May return ''. */
+export function cleanTranslation(text) {
+  let t = String(text ?? '');
+  t = t.replace(/(?:[.…]\s*){4,}/g, ' … ');
+  // one word repeated 4+ times in a row, or a 2-5 word phrase repeated 3+ times -> keep one copy
+  const W = String.raw`[\p{L}\p{N}'’-]+`;
+  t = t.replace(new RegExp(String.raw`(?<![\p{L}\p{N}])(${W})(?:[\s,.;:!?-]+\1(?![\p{L}\p{N}])){3,}`, 'giu'), '$1');
+  t = t.replace(new RegExp(String.raw`(?<![\p{L}\p{N}])(${W}(?:\s${W}){1,4})(?:[\s,.;:!?-]+\1(?![\p{L}\p{N}])){2,}`, 'giu'), '$1');
+  t = t.replace(/\s{2,}/g, ' ').replace(/\s+([,.!?;:])/g, '$1').trim();
+  t = t.replace(/^[\s.…,;:-]+$/, ''); // only punctuation left
+  return t;
+}
+
+/** Canonical forms of all numbers in a text ("1 500", "1,500" -> "1500"; "2,50" -> "2.5"). */
+export function extractNumbers(text) {
+  const out = [];
+  const SP = '\\u00a0\\u202f ';
+  const re = new RegExp(String.raw`\d+(?:[${SP},.]\d{3})*(?:[.,]\d+)?`, 'gu');
+  const spRe = new RegExp(`[${SP}]`, 'g');
+  for (const m of String(text).matchAll(re)) {
+    let t = m[0].replace(spRe, '');
+    const lastSep = Math.max(t.lastIndexOf('.'), t.lastIndexOf(','));
+    if (lastSep >= 0) {
+      const head = t.slice(0, lastSep), tail = t.slice(lastSep + 1);
+      const sepKinds = new Set(t.match(/[.,]/g));
+      const thousands = sepKinds.size === 1 && tail.length === 3 && /^\d{1,3}([.,]\d{3})*$/.test(head);
+      t = thousands ? t.replace(/[.,]/g, '') : head.replace(/[.,]/g, '') + '.' + tail;
+    }
+    if (t.includes('.')) t = t.replace(/0+$/, '').replace(/\.$/, '');
+    out.push(t);
+  }
+  return out;
+}
+
+/** Numbers of the original that are absent in the translation (empty list = OK). */
+export function missingNumbers(orig, tr) {
+  const have = new Set(extractNumbers(tr));
+  return [...new Set(extractNumbers(orig))].filter((n) => !have.has(n));
+}
+
+// ---------------------------------------------------------------- glossary
+// Lines: "термин = перевод" (replaced BEFORE translation through a placeholder, applies by the script of the term)
+//        "фраза => замена"  (replaced in the translation AFTER it). "#" starts a comment.
+
+export function parseGlossary(text) {
+  const pre = [], post = [];
+  for (const raw of String(text ?? '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const i = line.indexOf('=>');
+    if (i > 0) {
+      const from = line.slice(0, i).trim(), to = line.slice(i + 2).trim();
+      if (from && to) post.push({ from, to, lang: classify(from) });
+      continue;
+    }
+    const j = line.indexOf('=');
+    if (j > 0) {
+      const from = line.slice(0, j).trim(), to = line.slice(j + 1).trim();
+      if (from && to) pre.push({ from, to, lang: classify(from) });
+    }
+  }
+  pre.sort((a, b) => b.from.length - a.from.length);
+  post.sort((a, b) => b.from.length - a.from.length);
+  return { pre, post };
+}
+
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const wordRe = (s) => new RegExp(String.raw`(?<![\p{L}\p{N}])${escRe(s)}(?![\p{L}\p{N}])`, 'giu');
+export const PH_PREFIX = 'Qx', PH_SUFFIX = 'Q';
+const phRe = (i) => new RegExp(String.raw`${PH_PREFIX}\s*${i}\s*${PH_SUFFIX}`, 'gi');
+
+/** Replaces glossary terms of the source language by placeholders. Returns {text, map:[{ph,to}]}. */
+export function glossaryPre(text, srcLang, g) {
+  const map = [];
+  let t = text;
+  for (const e of g.pre) {
+    if (e.lang && e.lang !== srcLang) continue;
+    if (!wordRe(e.from).test(t)) continue;
+    const ph = PH_PREFIX + map.length + PH_SUFFIX;
+    t = t.replace(wordRe(e.from), ph);
+    map.push({ ph, to: e.to });
+  }
+  return { text: t, map };
+}
+
+/** Puts the glossary translations back. ok=false when a placeholder was lost by the translator. */
+export function glossaryRestore(out, map) {
+  let t = out, ok = true;
+  map.forEach((m, i) => {
+    if (!phRe(i).test(t)) ok = false;
+    t = t.replace(phRe(i), () => m.to);
+  });
+  return { text: t, ok };
+}
+
+/** "=>" rules on the translated text; [tgtLang] is the language of [out]. */
+export function glossaryPost(out, tgtLang, g) {
+  let t = out;
+  for (const e of g.post) {
+    if (e.lang && e.lang !== tgtLang) continue;
+    t = t.replace(wordRe(e.from), () => e.to);
+  }
+  return t;
+}

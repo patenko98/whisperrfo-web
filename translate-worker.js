@@ -4,6 +4,8 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 env.allowLocalModels = false;
 const MODELS = { 'ru-en': 'Xenova/opus-mt-ru-en', 'en-ru': 'Xenova/opus-mt-en-ru' };
 const pipes = {};
+let ready = null; // both models loaded; translating while they are still loading corrupts the ONNX sessions
+const loadAll = () => (ready ||= Promise.all([load('ru-en'), load('en-ru')]));
 
 function load(pair) {
   if (!pipes[pair]) {
@@ -19,9 +21,10 @@ onmessage = async (e) => {
   const m = e.data;
   try {
     if (m.type === 'init') {
-      await Promise.all([load('ru-en'), load('en-ru')]);
+      await loadAll();
       postMessage({ type: 'ready' });
     } else if (m.type === 'translate') {
+      await loadAll();
       const p = await load(m.src + '-' + m.tgt);
       // One sentence at a time: batching pads the inputs and makes Opus-MT emit stray "......".
       const parts = [];
